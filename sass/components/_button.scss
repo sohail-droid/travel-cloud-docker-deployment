@@ -1,0 +1,108 @@
+.btn {
+    &, // It is for button
+    /*Sudo class 'link'*/
+    &:link,
+    &:visited {
+        text-transform: uppercase;
+        text-decoration: none;
+        padding: 1.5rem 4rem;
+        display: inline-block;
+        border-radius: 10rem;
+        font-size: $default-font-size;
+        /*Animation*/
+        transition: all .2s;
+        
+        position: relative; /* help for ::after sudo element */
+
+        // Change for the <button> element
+        border: none;
+        cursor: pointer;
+    }
+    &:hover {
+        /*Animation*/
+        transform: translateY(-3px);
+        box-shadow: 0 1rem 2rem rgba($color-black,0.2);
+        
+        &::after {
+            transform: scaleX(1.4) scaleY(1.6);
+            opacity: 0;
+        }
+    }
+    &:active,
+    &:focus {
+        outline: none;
+        /*Animation*/
+        transform: translateY(-1px);
+        box-shadow: 0 .5rem 1rem rgba($color-black,0.2);
+    }
+    &--white {
+        background-color: $color-white;
+        color: $color-gre-dark;
+
+        &::after {
+            background-color: $color-white;
+        }
+    }
+
+    &--green {
+        background-color: $color-primary;
+        color: $color-white;
+
+        &::after {
+            background-color: $color-primary;
+        }
+    }
+
+    /* Animation using sudo element. The after element need to be copy of parent*/
+
+    &::after {
+        content: "";
+        display: inline-block;
+        font-size: $default-font-size;
+        height: 100%;
+        width: 100%;
+        border-radius: 100px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        transition: all .4s;
+    }
+
+    &--animated {
+        /*animation*/
+        /*
+        animation-name: moveInBottom;
+        animation-duration: 1s;
+        animation-timing-function: ease-out; /* ease-out (fast to slow) ease-in (slow to fast)*/
+        animation: moveInBottom 1s ease-out .75s;
+        /*animation: animation-name animation-duration animation-timing-function animation-delay*/
+        animation-fill-mode: backwards; /*Hide the content before start the animation*/
+    }
+}
+
+.btn-text {
+    &:link,
+    &:visited {
+        font-size: $default-font-size;
+
+        color: $color-primary;
+        display: inline-block;
+        text-decoration: none;
+        border-bottom: 1px solid $color-primary;
+        padding: 3px;
+        transition: all .2s;
+    }
+
+    &:hover {
+        background-color: $color-primary;
+        color: $color-white;
+        box-shadow: 0 1rem 2rem rgba($color-black,0.15);
+        transform: translateY(-2px);
+    }
+
+    &:active {
+        box-shadow: 0 0.5rem 1rem rgba($color-black,0.15);
+        transform: translateY(0px);
+    }
+}
