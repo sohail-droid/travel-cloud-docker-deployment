@@ -1,0 +1,26 @@
+steps:
+  # Step 1: Build the Docker image from your Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA',
+      '.'
+    ]
+
+  # Step 2: Push the image to Artifact Registry (same region)
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push',
+      'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA'
+    ]
+
+  # Step 3: Deploy the image to Cloud Run (same region)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'travel-website',
+      '--image', 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA',
+      '--region', 'asia-south1',
+      '--platform', 'managed',
+      '--allow-unauthenticated'
+    ]
