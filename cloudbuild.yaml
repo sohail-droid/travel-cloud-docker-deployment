@@ -1,67 +1,27 @@
-: <<"COMMENT"
-steps:
-  # Step 1: Build the Docker image from your Dockerfile
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build',
-      '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA',
-      '.'
-    ]
-
-  # Step 2: Push the image to Artifact Registry (same region)
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'push',
-      'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA'
-    ]
-
-  # Step 3: Deploy the image to Cloud Run (same region)
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args: [
-      'run', 'deploy', 'travel-website',
-      '--image', 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA',
-      '--region', 'asia-south1',
-      '--platform', 'managed',
-      '--allow-unauthenticated'
-    ]
-
-options:
-  logging: CLOUD_LOGGING_ONLY
-
-COMMENT
-
-#------------------------------------------------------------------------------------updated cloudbuild.yaml-----------------------------------------------------------------------------------------
-
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args:
       - -c
       - |
-        echo "Trying to pull cache image if present from the artifact."
+        echo "⏳ Trying to pull cache image..."
         if docker pull asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest; then
-        echo "Found cache image. now building it"
-    docker build --cache-from=asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest \
-    -t asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA \
-    .
+          echo "✅ Found cache image. Building with cache..."
+          docker build \
+            --cache-from=asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest \
+            -t asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA \
+            .
+        else
+          echo "⚠️ No cache found. Building from scratch..."
+          docker build \
+            -t asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA \
+            .
+        fi
 
-    else \
-    echo "No cache found building from the scratch"
-    docker build \
-    -t asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA \
-    .
-    fi
-
-
-  #step2: push new versioned image
-  
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - push
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA'
-
-  #step3: Tag and push it as latest for cache in future builds.
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -74,20 +34,16 @@ steps:
       - push
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest'
 
-  #step4: Deploy to cloud run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - run
       - deploy
       - travel-website
-  - -image=asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA
-  - --region=asia-south1
-  - --platform=managed
-  - --allow-unauthenticated
-
+      - --image=asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA
+      - --region=asia-south1
+      - --platform=managed
+      - --allow-unauthenticated
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-
