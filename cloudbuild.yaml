@@ -38,19 +38,7 @@ steps:
       - push
       - asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest
 
-  # 5️⃣ Deploy to Cloud Run (optional step you already had)
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - travel-website
-      - --image=asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA
-      - --region=asia-south1
-      - --platform=managed
-      - --allow-unauthenticated
-
-  # 6️⃣ Create new instance template with updated container image
+  # 5️⃣ Create new instance template with updated container image
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -71,7 +59,7 @@ steps:
               tty: false
           restartPolicy: Always
 
-  # 7️⃣ Point MIG to new template
+  # 6️⃣ Point MIG to new template
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -82,7 +70,7 @@ steps:
       - --template=travel-template-${SHORT_SHA}
       - --zone=asia-south1-a
 
-  # 8️⃣ Replace all instances in MIG
+  # 7️⃣ Replace all instances in MIG
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
