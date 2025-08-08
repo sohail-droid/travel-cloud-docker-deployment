@@ -1,41 +1,45 @@
 steps:
-# Step 1 — Generate timestamp and save to file
-- name: 'gcr.io/cloud-builders/bash'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      TS=$(date +%Y%m%d-%H%M%S)
-      echo "Using timestamp: $TS"
-      echo $TS > /workspace/timestamp.txt
+  # Step 1: Create Instance Template
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - compute
+      - instance-templates
+      - create
+      - ipv4-v6-template-$BUILD_ID
+      - --machine-type=e2-micro
+      - --image-family=debian-12
+      - --image-project=debian-cloud
+      - --tags=allow-http,allow-https,allow-ssh,ipv4-v6
+      - --metadata=startup-script=
+          #!/bin/bash
+          apt-get update -y
+          apt-get install nginx -y
+          systemctl enable nginx
+          systemctl start nginx
+          echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html
 
-# Step 2 — Read timestamp and create instance template
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      TS=$(cat /workspace/timestamp.txt)
-      gcloud compute instance-templates create ipv4-v6-template-$TS \
-        --machine-type=e2-micro \
-        --region=asia-south1 \
-        --subnet=ipv4-v6-subnet \
-        --image-family=debian-12 \
-        --image-project=debian-cloud \
-        --stack-type=IPV4_IPV6 \
-        --network-tier=PREMIUM \
-        --tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6 \
-        --metadata-from-file=startup-script=startup.sh
+  # Step 2: Update the MIG to use the new template
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - compute
+      - instance-groups
+      - managed
+      - set-instance-template
+      - ipv4-v6-mig
+      - --template=ipv4-v6-template-$BUILD_ID
+      - --region=asia-south1
 
-# Step 3 — Create MIG from template
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      TS=$(cat /workspace/timestamp.txt)
-      gcloud compute instance-groups managed create ipv4-v6-mig \
-        --base-instance-name=ipv4-v6-mig \
-        --size=1 \
-        --template=ipv4-v6-template-$TS \
-        --region=asia-south1
+  # Step 3: Rolling restart to apply the new template
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - compute
+      - instance-groups
+      - managed
+      - rolling-action
+      - start-update
+      - ipv4-v6-mig
+      - --version=template=ipv4-v6-template-$BUILD_ID
+      - --region=asia-south1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
