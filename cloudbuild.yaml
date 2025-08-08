@@ -1,24 +1,23 @@
 steps:
-  # Step 1: Create Instance Template
+  # Step 1: Create instance template
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
       - instance-templates
       - create
-      - ipv4-v6-template-$BUILD_ID
+      - ipv4-v6-template-fixed
       - --machine-type=e2-micro
       - --image-family=debian-12
       - --image-project=debian-cloud
       - --tags=allow-http,allow-https,allow-ssh,ipv4-v6
-      - --metadata=startup-script=
-          #!/bin/bash
-          apt-get update -y
-          apt-get install nginx -y
-          systemctl enable nginx
-          systemctl start nginx
-          echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html
+      - --metadata=startup-script=#!/bin/bash
+        apt-get update -y
+        apt-get install nginx -y
+        systemctl enable nginx
+        systemctl start nginx
+        echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html
 
-  # Step 2: Update the MIG to use the new template
+  # Step 2: Update MIG to use the new template
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -26,20 +25,19 @@ steps:
       - managed
       - set-instance-template
       - ipv4-v6-mig
-      - --template=ipv4-v6-template-$BUILD_ID
-      - --region=asia-south1
+      - --template=ipv4-v6-template-fixed
+      - --zone=asia-south1-a
 
-  # Step 3: Rolling restart to apply the new template
+  # Step 3: Recreate all instances in MIG
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
       - instance-groups
       - managed
-      - rolling-action
-      - start-update
+      - recreate-instances
       - ipv4-v6-mig
-      - --version=template=ipv4-v6-template-$BUILD_ID
-      - --region=asia-south1
+      - --instances=ipv4-v6-mig
+      - --zone=asia-south1-a
 
 options:
   logging: CLOUD_LOGGING_ONLY
