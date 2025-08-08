@@ -34,6 +34,7 @@
         --template=$$TEMPLATE_NAME \
         --project=$$PROJECT_ID
 
+
 - name: gcr.io/cloud-builders/gcloud
   args:
     - compute
@@ -45,4 +46,6 @@
     - --zone=asia-south1-a
     - --type=proactive
     - --max-unavailable=1
+    - --project=training-2024-batch
+
     - --project=training-2024-batch
