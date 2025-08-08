@@ -23,22 +23,22 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - push
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA'
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA
 
   # 3️⃣ Tag as latest
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - tag
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest'
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:$SHORT_SHA
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest
 
   # 4️⃣ Push latest tag
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - push
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest'
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/travelwebsite-deploy-test/travel-website:latest
 
-  # 5️⃣ Deploy to Cloud Run (existing step)
+  # 5️⃣ Deploy to Cloud Run (optional step you already had)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -53,38 +53,47 @@ steps:
   # 6️⃣ Create new instance template with updated container image
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
-      [
-        'compute', 'instance-templates', 'create', 'travel-template-${SHORT_SHA}',
-        '--machine-type=e2-medium',
-        '--image-family=cos-stable',
-        '--image-project=cos-cloud',
-        '--tags=http-server',
-        '--metadata',
-        'google-logging-enabled=true',
-        '--metadata',
-        'gce-container-declaration=spec:\n  containers:\n    - name: travel-website\n      image: asia-south1-docker.pkg.dev/'"$PROJECT_ID"'/travelwebsite-deploy-test/travel-website:'"$SHORT_SHA"'\n      stdin: false\n      tty: false\n  restartPolicy: Always'
-      ]
+      - compute
+      - instance-templates
+      - create
+      - travel-template-${SHORT_SHA}
+      - --machine-type=e2-medium
+      - --image-family=cos-stable
+      - --image-project=cos-cloud
+      - --tags=http-server
+      - --metadata=google-logging-enabled=true
+      - |
+        --metadata=gce-container-declaration=spec:
+          containers:
+            - name: travel-website
+              image: asia-south1-docker.pkg.dev/${PROJECT_ID}/travelwebsite-deploy-test/travel-website:${SHORT_SHA}
+              stdin: false
+              tty: false
+          restartPolicy: Always
 
   # 7️⃣ Point MIG to new template
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
-      [
-        'compute', 'instance-groups', 'managed', 'set-instance-template',
-        'ipv4-v6-mig',                      # MIG name
-        '--template=travel-template-${SHORT_SHA}',
-        '--zone=asia-south1-a'              # Zonal MIG
-      ]
+      - compute
+      - instance-groups
+      - managed
+      - set-instance-template
+      - ipv4-v6-mig
+      - --template=travel-template-${SHORT_SHA}
+      - --zone=asia-south1-a
 
   # 8️⃣ Replace all instances in MIG
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
-      [
-        'compute', 'instance-groups', 'managed', 'rolling-action', 'replace',
-        'ipv4-v6-mig',
-        '--zone=asia-south1-a',
-        '--max-surge=0',
-        '--max-unavailable=1'
-      ]
+      - compute
+      - instance-groups
+      - managed
+      - rolling-action
+      - replace
+      - ipv4-v6-mig
+      - --zone=asia-south1-a
+      - --max-surge=0
+      - --max-unavailable=1
 
 options:
   logging: CLOUD_LOGGING_ONLY
