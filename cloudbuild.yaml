@@ -50,5 +50,6 @@
     - --max-unavailable=1
     - --project=training-2024-batch
 
+
 options:
   logging: CLOUD_LOGGING_ONLY
