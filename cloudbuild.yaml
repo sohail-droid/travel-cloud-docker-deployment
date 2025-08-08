@@ -1,43 +1,48 @@
 steps:
-  # Step 1: Create instance template
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-templates
-      - create
-      - ipv4-v6-template-fixed
-      - --machine-type=e2-micro
-      - --image-family=debian-12
-      - --image-project=debian-cloud
-      - --tags=allow-http,allow-https,allow-ssh,ipv4-v6
-      - --metadata=startup-script=#!/bin/bash
-        apt-get update -y
-        apt-get install nginx -y
-        systemctl enable nginx
-        systemctl start nginx
-        echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html
+# 1️⃣ Create Instance Template
+- name: gcr.io/cloud-builders/gcloud
+  args:
+    - compute
+    - instance-templates
+    - create
+    - ipv4-v6-template-fixed
+    - --machine-type=e2-micro
+    - --image-family=debian-12
+    - --image-project=debian-cloud
+    - --subnet=ipv4-v6-subnet
+    - --region=asia-south1
+    - --stack-type=IPV4_IPV6
+    - --network-tier=PREMIUM
+    - --tags=allow-http,allow-https,allow-ssh,ipv4-v6
+    - --metadata=startup-script=#\!/bin/bash
+      apt-get update -y && apt-get install nginx -y &&
+      systemctl enable nginx && systemctl start nginx &&
+      echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html
 
-  # Step 2: Update MIG to use the new template
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-groups
-      - managed
-      - set-instance-template
-      - ipv4-v6-mig
-      - --template=ipv4-v6-template-fixed
-      - --zone=asia-south1-a
+# 2️⃣ Create Managed Instance Group
+- name: gcr.io/cloud-builders/gcloud
+  args:
+    - compute
+    - instance-groups
+    - managed
+    - create
+    - ipv4-v6-mig
+    - --base-instance-name=ipv4-v6
+    - --size=1
+    - --template=ipv4-v6-template-fixed
+    - --region=asia-south1
 
-  # Step 3: Recreate all instances in MIG
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-groups
-      - managed
-      - recreate-instances
-      - ipv4-v6-mig
-      - --instances=ipv4-v6-mig
-      - --zone=asia-south1-a
+# 3️⃣ Enable Autohealing (Optional)
+- name: gcr.io/cloud-builders/gcloud
+  args:
+    - compute
+    - instance-groups
+    - managed
+    - set-autohealing
+    - ipv4-v6-mig
+    - --region=asia-south1
+    - --health-check=default
+
 
 options:
   logging: CLOUD_LOGGING_ONLY
