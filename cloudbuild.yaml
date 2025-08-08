@@ -1,51 +1,55 @@
-- name: gcr.io/cloud-builders/gcloud
-  entrypoint: bash
-  args:
-    - -c
-    - |
-      TEMPLATE_NAME="ipv4-v6-template-$(date +%Y%m%d%H%M%S)"
-      PROJECT_ID="training-2024-batch"
+steps:
+  # Step 1: Create a new instance template with unique timestamped name
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        TEMPLATE_NAME="ipv4-v6-template-$(date +%Y%m%d%H%M%S)"
+        PROJECT_ID="training-2024-batch"
 
-      echo "Creating new template: $$TEMPLATE_NAME"
-      gcloud compute instance-templates create $$TEMPLATE_NAME \
-        --machine-type=e2-micro \
-        --image-family=debian-12 \
-        --image-project=debian-cloud \
-        --subnet=ipv4-v6-subnet \
-        --region=asia-south1 \
-        --stack-type=IPV4_IPV6 \
-        --network-tier=PREMIUM \
-        --tags=allow-http,allow-https,allow-ssh,ipv4-v6 \
-        --metadata-from-file=startup-script=startup.sh \
-        --project=$$PROJECT_ID
+        echo "Creating new instance template: $$TEMPLATE_NAME"
+        gcloud compute instance-templates create $$TEMPLATE_NAME \
+          --machine-type=e2-micro \
+          --image-family=debian-12 \
+          --image-project=debian-cloud \
+          --subnet=ipv4-v6-subnet \
+          --region=asia-south1 \
+          --stack-type=IPV4_IPV6 \
+          --network-tier=PREMIUM \
+          --tags=allow-http,allow-https,allow-ssh,ipv4-v6 \
+          --metadata-from-file=startup-script=startup.sh \
+          --project=$$PROJECT_ID
 
-      echo $$TEMPLATE_NAME > template_name.txt
+        echo $$TEMPLATE_NAME > template_name.txt
 
-- name: gcr.io/cloud-builders/gcloud
-  entrypoint: bash
-  args:
-    - -c
-    - |
-      TEMPLATE_NAME=$$(cat template_name.txt)
-      PROJECT_ID="training-2024-batch"
-      echo "Updating MIG to use template: $$TEMPLATE_NAME"
-      gcloud compute instance-groups managed set-instance-template ipv4-v6-mig \
-        --zone=asia-south1-a \
-        --template=$$TEMPLATE_NAME \
-        --project=$$PROJECT_ID
+  # Step 2: Update the MIG to use the new instance template
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        TEMPLATE_NAME=$$(cat template_name.txt)
+        PROJECT_ID="training-2024-batch"
+        echo "Updating MIG ipv4-v6-mig to use template $$TEMPLATE_NAME"
+        gcloud compute instance-groups managed set-instance-template ipv4-v6-mig \
+          --zone=asia-south1-a \
+          --template=$$TEMPLATE_NAME \
+          --project=$$PROJECT_ID
 
+  # Step 3: Trigger a rolling update to apply the new template
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - compute
+      - instance-groups
+      - managed
+      - rolling-action
+      - start-update
+      - ipv4-v6-mig
+      - --zone=asia-south1-a
+      - --type=proactive
+      - --max-unavailable=1
+      - --project=training-2024-batch
 
-- name: gcr.io/cloud-builders/gcloud
-  args:
-    - compute
-    - instance-groups
-    - managed
-    - rolling-action
-    - start-update
-    - ipv4-v6-mig
-    - --zone=asia-south1-a
-    - --type=proactive
-    - --max-unavailable=1
-    - --project=training-2024-batch
-
-    - --project=training-2024-batch
+options:
+  logging: CLOUD_LOGGING_ONLY
