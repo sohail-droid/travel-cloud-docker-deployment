@@ -1,56 +1,52 @@
 steps:
-  # 1️⃣ Build Docker image (optional if you want Nginx only — can remove this if not needed)
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - build
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/travel-app:$SHORT_SHA'
-      - '.'
+# Step 1: Build the Docker image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/travel-website', '.']
 
-  # 2️⃣ Push Docker image (optional)
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - push
-      - 'gcr.io/$PROJECT_ID/travel-app:$SHORT_SHA'
+# Step 2: Push the Docker image to Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/travel-website']
 
-  # 3️⃣ Create new Debian 12 template with Nginx
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-templates
-      - create
-      - ipv4-v6-template-$SHORT_SHA
-      - --machine-type=e2-micro
-      - --image-family=debian-12
-      - --image-project=debian-cloud
-      - --boot-disk-size=10GB
-      - --boot-disk-type=pd-balanced
-      - --tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6
-      - --metadata=startup-script=#\!/bin/bash$'\n'apt-get\ update\ -y$'\n'apt-get\ install\ nginx\ -y$'\n'systemctl\ enable\ nginx$'\n'systemctl\ start\ nginx$'\n'echo\ \"Hi\ all!\ This\ is\ an\ automated\ MIG\ update\ from\ Cloud\ Build\ at\ $(date)\" \>\ /var/www/html/index.nginx-debian.html
+# Step 3: Create an instance template
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'instance-templates', 'create', 'ipv4-v6-template-$(date +%Y%m%d-%H%M%S)',
+      '--machine-type=e2-micro',
+      '--region=asia-south1',
+      '--subnet=ipv4-v6-subnet',
+      '--image-family=debian-12',
+      '--image-project=debian-cloud',
+      '--stack-type=IPV4_IPV6',
+      '--network-tier=PREMIUM',
+      '--tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6',
+      '--metadata=startup-script='
+      '#!/bin/bash
+      apt-get update -y
+      apt-get install nginx -y
+      systemctl enable nginx
+      systemctl start nginx
+      echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html'
+    ]
 
-  # 4️⃣ Update the MIG to use new template
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-groups
-      - managed
-      - set-instance-template
-      - ipv4-v6-mig
-      - --template=ipv4-v6-template-$SHORT_SHA
-      - --region=asia-south1
+# Step 4: Update the MIG to use the new template
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'instance-groups', 'managed', 'set-instance-template', 'ipv4-v6-mig',
+      '--template=ipv4-v6-template-$(date +%Y%m%d-%H%M%S)',
+      '--region=asia-south1'
+    ]
 
-  # 5️⃣ Start a rolling update (replace existing VMs)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instance-groups
-      - managed
-      - rolling-action
-      - replace
-      - ipv4-v6-mig
-      - --region=asia-south1
-      - --max-surge=1
-      - --max-unavailable=0
+# Step 5: Start a rolling restart so new VMs are created
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'instance-groups', 'managed', 'rolling-action', 'replace', 'ipv4-v6-mig',
+      '--max-surge=1',
+      '--max-unavailable=0',
+      '--region=asia-south1'
+    ]
 
-images:
-  - 'gcr.io/$PROJECT_ID/travel-app:$SHORT_SHA'
+options:
+  logging: CLOUD_LOGGING_ONLY
