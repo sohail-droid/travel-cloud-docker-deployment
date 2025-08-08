@@ -1,52 +1,41 @@
 steps:
-# Step 1: Build the Docker image
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/travel-website', '.']
-
-# Step 2: Push the Docker image to Container Registry
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/travel-website']
-
-# Step 3: Create an instance template
-- name: 'gcr.io/cloud-builders/gcloud'
+# Step 1 — Generate timestamp and save to file
+- name: 'gcr.io/cloud-builders/bash'
+  entrypoint: 'bash'
   args:
-    - 'compute'
-    - 'instance-templates'
-    - 'create'
-    - 'ipv4-v6-template-$(date +%Y%m%d-%H%M%S)'
-    - '--machine-type=e2-micro'
-    - '--region=asia-south1'
-    - '--subnet=ipv4-v6-subnet'
-    - '--image-family=debian-12'
-    - '--image-project=debian-cloud'
-    - '--stack-type=IPV4_IPV6'
-    - '--network-tier=PREMIUM'
-    - '--tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6'
-    - '--metadata-from-file=startup-script=startup.sh'
+    - '-c'
+    - |
+      TS=$(date +%Y%m%d-%H%M%S)
+      echo "Using timestamp: $TS"
+      echo $TS > /workspace/timestamp.txt
 
-# Step 4: Update the MIG to use the new template
+# Step 2 — Read timestamp and create instance template
 - name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
-    - 'compute'
-    - 'instance-groups'
-    - 'managed'
-    - 'set-instance-template'
-    - 'ipv4-v6-mig'
-    - '--template=ipv4-v6-template-$(date +%Y%m%d-%H%M%S)'
-    - '--region=asia-south1'
+    - '-c'
+    - |
+      TS=$(cat /workspace/timestamp.txt)
+      gcloud compute instance-templates create ipv4-v6-template-$TS \
+        --machine-type=e2-micro \
+        --region=asia-south1 \
+        --subnet=ipv4-v6-subnet \
+        --image-family=debian-12 \
+        --image-project=debian-cloud \
+        --stack-type=IPV4_IPV6 \
+        --network-tier=PREMIUM \
+        --tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6 \
+        --metadata-from-file=startup-script=startup.sh
 
-# Step 5: Start a rolling restart so new VMs are created
+# Step 3 — Create MIG from template
 - name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
-    - 'compute'
-    - 'instance-groups'
-    - 'managed'
-    - 'rolling-action'
-    - 'replace'
-    - 'ipv4-v6-mig'
-    - '--max-surge=1'
-    - '--max-unavailable=0'
-    - '--region=asia-south1'
-
-options:
-  logging: CLOUD_LOGGING_ONLY
+    - '-c'
+    - |
+      TS=$(cat /workspace/timestamp.txt)
+      gcloud compute instance-groups managed create ipv4-v6-mig \
+        --base-instance-name=ipv4-v6-mig \
+        --size=1 \
+        --template=ipv4-v6-template-$TS \
+        --region=asia-south1
