@@ -10,43 +10,43 @@ steps:
 # Step 3: Create an instance template
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
-    [
-      'compute', 'instance-templates', 'create', 'ipv4-v6-template-$(date +%Y%m%d-%H%M%S)',
-      '--machine-type=e2-micro',
-      '--region=asia-south1',
-      '--subnet=ipv4-v6-subnet',
-      '--image-family=debian-12',
-      '--image-project=debian-cloud',
-      '--stack-type=IPV4_IPV6',
-      '--network-tier=PREMIUM',
-      '--tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6',
-      '--metadata=startup-script='
-      '#!/bin/bash
-      apt-get update -y
-      apt-get install nginx -y
-      systemctl enable nginx
-      systemctl start nginx
-      echo "Hi all! Hope you had a great session on Dual VPC, IPv4 & IPv6 Load Balancers!" > /var/www/html/index.nginx-debian.html'
-    ]
+    - 'compute'
+    - 'instance-templates'
+    - 'create'
+    - 'ipv4-v6-template-$(date +%Y%m%d-%H%M%S)'
+    - '--machine-type=e2-micro'
+    - '--region=asia-south1'
+    - '--subnet=ipv4-v6-subnet'
+    - '--image-family=debian-12'
+    - '--image-project=debian-cloud'
+    - '--stack-type=IPV4_IPV6'
+    - '--network-tier=PREMIUM'
+    - '--tags=allow-http,allow-https,allow-ssh,http-server,https-server,ipv4-v6'
+    - '--metadata-from-file=startup-script=startup.sh'
 
 # Step 4: Update the MIG to use the new template
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
-    [
-      'compute', 'instance-groups', 'managed', 'set-instance-template', 'ipv4-v6-mig',
-      '--template=ipv4-v6-template-$(date +%Y%m%d-%H%M%S)',
-      '--region=asia-south1'
-    ]
+    - 'compute'
+    - 'instance-groups'
+    - 'managed'
+    - 'set-instance-template'
+    - 'ipv4-v6-mig'
+    - '--template=ipv4-v6-template-$(date +%Y%m%d-%H%M%S)'
+    - '--region=asia-south1'
 
 # Step 5: Start a rolling restart so new VMs are created
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
-    [
-      'compute', 'instance-groups', 'managed', 'rolling-action', 'replace', 'ipv4-v6-mig',
-      '--max-surge=1',
-      '--max-unavailable=0',
-      '--region=asia-south1'
-    ]
+    - 'compute'
+    - 'instance-groups'
+    - 'managed'
+    - 'rolling-action'
+    - 'replace'
+    - 'ipv4-v6-mig'
+    - '--max-surge=1'
+    - '--max-unavailable=0'
+    - '--region=asia-south1'
 
 options:
   logging: CLOUD_LOGGING_ONLY
