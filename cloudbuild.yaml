@@ -1,3 +1,5 @@
+steps:
+# Create new instance template with timestamped name and use startup.sh for metadata
 - name: gcr.io/cloud-builders/gcloud
   entrypoint: bash
   args:
@@ -16,14 +18,12 @@
         --stack-type=IPV4_IPV6 \
         --network-tier=PREMIUM \
         --tags=allow-http,allow-https,allow-ssh,ipv4-v6 \
-        --metadata=startup-script="#!/bin/bash
-        apt-get update -y && apt-get install nginx -y
-        systemctl enable nginx && systemctl start nginx
-        echo 'Hi all! This is the NEW version deployed at $(date)' > /var/www/html/index.nginx-debian.html" \
+        --metadata-from-file=startup-script=startup.sh \
         --project=$$PROJECT_ID
 
       echo $$TEMPLATE_NAME > template_name.txt
 
+# Update MIG to use new template
 - name: gcr.io/cloud-builders/gcloud
   entrypoint: bash
   args:
@@ -37,6 +37,7 @@
         --template=$$TEMPLATE_NAME \
         --project=$$PROJECT_ID
 
+# Trigger rolling update for MIG to replace instances one by one
 - name: gcr.io/cloud-builders/gcloud
   args:
     - compute
@@ -49,7 +50,6 @@
     - --type=proactive
     - --max-unavailable=1
     - --project=training-2024-batch
-
 
 options:
   logging: CLOUD_LOGGING_ONLY
