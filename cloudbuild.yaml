@@ -1,5 +1,5 @@
 steps:
-  # Step 1: Create a new instance template with unique timestamped name
+  # Step 1: create template (unchanged)
   - name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
     args:
@@ -23,7 +23,7 @@ steps:
 
         echo $$TEMPLATE_NAME > template_name.txt
 
-  # Step 2: Update the MIG to use the new instance template
+  # Step 2: update MIG to new template
   - name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
     args:
@@ -37,19 +37,21 @@ steps:
           --template=$$TEMPLATE_NAME \
           --project=$$PROJECT_ID
 
-  # Step 3: Trigger a rolling update to apply the new template
+  # Step 3: rolling update with version flag
   - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
     args:
-      - compute
-      - instance-groups
-      - managed
-      - rolling-action
-      - start-update
-      - ipv4-v6-mig
-      - --zone=asia-south1-a
-      - --type=proactive
-      - --max-unavailable=1
-      - --project=training-2024-batch
+      - -c
+      - |
+        TEMPLATE_NAME=$$(cat template_name.txt)
+        PROJECT_ID="training-2024-batch"
+        echo "Starting rolling update for MIG with template $$TEMPLATE_NAME"
+        gcloud compute instance-groups managed rolling-action start-update ipv4-v6-mig \
+          --zone=asia-south1-a \
+          --version=template=$$TEMPLATE_NAME \
+          --type=proactive \
+          --max-unavailable=1 \
+          --project=$$PROJECT_ID
 
 options:
   logging: CLOUD_LOGGING_ONLY
